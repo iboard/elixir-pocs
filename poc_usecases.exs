@@ -7,12 +7,13 @@ defprotocol Usecase do
   def state(usecase)
   def entity(usecase)
   def client(usecase)
+  def validate(usecase, fun)
 end
 
 defmodule Clean do
   defmacro __using__(_opts) do
     quote do
-      defstruct request: nil, errors: [], result: nil, halt: false, client: :system
+      defstruct request: nil, errors: [], result: nil, halt: false, client: :system, valid?: true
 
       defimpl Usecase, for: __MODULE__ do
         def request(usecase, ... = opts \\ []) do
@@ -50,6 +51,10 @@ defmodule Clean do
             :error -> nil
             x -> x
           end
+        end
+
+        def validate(usecase, fun) do
+          fun.(usecase)
         end
       end
     end
@@ -147,7 +152,26 @@ defmodule MyApp do
     |> Usecase.execute()
     |> Usecase.entity()
     |> IO.inspect(label: "Today is")
+
+    IO.puts("")
+
+    # Validation
+    %DateUsecase{}
+    |> Usecase.validate(fn u -> %{u | valid?: :eh, halt: true} end)
+    |> Usecase.execute()
+    |> Usecase.entity()
+    |> IO.inspect(label: "Not executed when validation failed")
+
+    IO.puts("")
+
+    %DateUsecase{}
+    |> Usecase.validate(fn u -> %{u | valid?: true, halt: false} end)
+    |> Usecase.execute()
+    |> Usecase.entity()
+    |> IO.inspect(label: "Executed when validation passed")
   end
 end
 
 MyApp.run()
+
+System.halt()
